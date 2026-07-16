@@ -26,6 +26,7 @@ pub struct TtsOptions {
     pub loudness_rate: i32,
     pub pitch: i32,
     pub voice_instruction: Option<String>,
+    pub embed_voice_instruction: bool,
     pub sample_rate: u32,
 }
 
@@ -68,6 +69,7 @@ impl TtsClient {
         let embedded_text = options
             .voice_instruction
             .as_deref()
+            .filter(|_| options.embed_voice_instruction)
             .map(|instruction| embedded_instruction_text(instruction, text));
         let request_text = embedded_text.as_deref().unwrap_or(text);
         let request_id = Uuid::new_v4().to_string();
@@ -219,7 +221,8 @@ fn request_body<'a>(text: &'a str, options: &'a TtsOptions) -> TtsRequest<'a> {
                 sample_rate: options.sample_rate,
                 speech_rate: options.speech_rate,
                 loudness_rate: options.loudness_rate,
-                enable_subtitle: options.voice_instruction.is_some(),
+                enable_subtitle: options.voice_instruction.is_some()
+                    && options.embed_voice_instruction,
             },
             post_process: PostProcess {
                 pitch: options.pitch,
@@ -531,6 +534,7 @@ mod tests {
             loudness_rate: 0,
             pitch: -3,
             voice_instruction: Some("请用温柔、自然的语气说话。".to_owned()),
+            embed_voice_instruction: true,
             sample_rate: 48_000,
         };
         let body = serde_json::to_value(request_body("你好", &options)).unwrap();
@@ -561,11 +565,34 @@ mod tests {
             loudness_rate: 0,
             pitch: 0,
             voice_instruction: None,
+            embed_voice_instruction: true,
             sample_rate: 48_000,
         };
         let body = serde_json::to_value(request_body("你好", &options)).unwrap();
         assert!(body["req_params"].get("context_texts").is_none());
         assert_eq!(body["req_params"]["audio_params"]["enable_subtitle"], false);
+    }
+
+    #[test]
+    fn disabled_embedding_keeps_context_prompt_without_subtitles() {
+        let options = TtsOptions {
+            api_key: "secret-key".to_owned(),
+            resource_id: "seed-tts-2.0".to_owned(),
+            speaker: "speaker-id".to_owned(),
+            speech_rate: 0,
+            loudness_rate: 0,
+            pitch: 0,
+            voice_instruction: Some("请用悲伤的语气说话。".to_owned()),
+            embed_voice_instruction: false,
+            sample_rate: 48_000,
+        };
+        let body = serde_json::to_value(request_body("你好", &options)).unwrap();
+
+        assert_eq!(body["req_params"]["audio_params"]["enable_subtitle"], false);
+        assert_eq!(
+            body["req_params"]["context_texts"][0],
+            "请用悲伤的语气说话。"
+        );
     }
 
     #[test]

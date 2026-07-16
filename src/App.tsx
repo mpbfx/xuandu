@@ -54,6 +54,7 @@ const DEFAULT_SETTINGS: Settings = {
   loudnessRate: 0,
   pitch: 0,
   voiceInstruction: null,
+  embedVoiceInstruction: true,
   shortcut: "Command+Option+R",
   favoriteSpeakerIds: [],
   launchAtLogin: false,
@@ -810,7 +811,18 @@ export default function App() {
                       </button>
                     ))}
                   </div>
-                  <p className="instruction-help">指令会作为隐藏前缀增强表达，并根据豆包返回的字级时间戳裁掉前缀音频。因此不会念出指令，但开始播放可能稍慢。</p>
+                  <label className="instruction-embedding-toggle">
+                    <span>
+                      <strong>隐藏前缀增强</strong>
+                      <small>{settings.embedVoiceInstruction ? "效果更强，开始播放可能稍慢" : "仅使用豆包 context_texts 软提示"}</small>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={settings.embedVoiceInstruction}
+                      onChange={(event) => queueSettings({ embedVoiceInstruction: event.target.checked }, 0)}
+                      disabled={usingCustomVoice}
+                    />
+                  </label>
                   <label className="instruction-field">
                     <span className="sr-only">自定义语音指令</span>
                     <textarea

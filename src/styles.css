@@ -865,6 +865,39 @@ h1 {
   margin-top: 0;
 }
 
+.instruction-embedding-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 9px;
+  border: 1px solid #ded3c2;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.instruction-embedding-toggle span {
+  display: grid;
+  gap: 2px;
+}
+
+.instruction-embedding-toggle strong {
+  color: #4f5e54;
+  font-size: 0.67rem;
+}
+
+.instruction-embedding-toggle small {
+  color: #83857c;
+  font-size: 0.61rem;
+}
+
+.instruction-embedding-toggle input {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  accent-color: #355f47;
+}
+
 .instruction-help {
   margin: 0;
   color: #7b8078;

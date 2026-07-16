@@ -21,6 +21,7 @@ export interface Settings {
   loudnessRate: number;
   pitch: number;
   voiceInstruction?: string | null;
+  embedVoiceInstruction: boolean;
   shortcut: string;
   favoriteSpeakerIds: string[];
   launchAtLogin: boolean;
@@ -33,6 +34,7 @@ export interface SettingsPatch {
   loudnessRate?: number;
   pitch?: number;
   voiceInstruction?: string;
+  embedVoiceInstruction?: boolean;
   shortcut?: string;
   favoriteSpeakerIds?: string[];
   launchAtLogin?: boolean;
