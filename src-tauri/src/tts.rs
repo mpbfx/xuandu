@@ -183,9 +183,18 @@ fn request_body<'a>(text: &'a str, options: &'a TtsOptions) -> TtsRequest<'a> {
             context_texts: options
                 .voice_instruction
                 .as_ref()
-                .map(|instruction| vec![instruction.clone()]),
+                .map(|instruction| vec![voice_instruction_context(instruction)]),
             additions: r#"{"explicit_language":"zh-cn","disable_markdown_filter":true,"disable_emoji_filter":true}"#.to_owned(),
         },
+    }
+}
+
+fn voice_instruction_context(instruction: &str) -> String {
+    let instruction = instruction.trim();
+    if instruction.ends_with(['。', '！', '？', '.', '!', '?']) {
+        instruction.to_owned()
+    } else {
+        format!("请严格按照以下要求朗读：{instruction}。")
     }
 }
 
@@ -342,7 +351,10 @@ fn provider_error(code: i64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{request_body, split_text, TtsOptions, TtsStreamEvent, TtsStreamParser};
+    use super::{
+        request_body, split_text, voice_instruction_context, TtsOptions, TtsStreamEvent,
+        TtsStreamParser,
+    };
 
     #[test]
     fn request_uses_v3_pcm_layout_and_never_serializes_the_api_key() {
@@ -384,6 +396,18 @@ mod tests {
         };
         let body = serde_json::to_value(request_body("你好", &options)).unwrap();
         assert!(body["req_params"].get("context_texts").is_none());
+    }
+
+    #[test]
+    fn short_voice_instruction_is_expanded_into_a_clear_prompt() {
+        assert_eq!(
+            voice_instruction_context("用悄悄话说"),
+            "请严格按照以下要求朗读：用悄悄话说。"
+        );
+        assert_eq!(
+            voice_instruction_context("请用温柔的语气说话。"),
+            "请用温柔的语气说话。"
+        );
     }
 
     #[test]

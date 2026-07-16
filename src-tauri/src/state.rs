@@ -23,7 +23,7 @@ use crate::{
 
 const CAPTURE_DELAY: Duration = Duration::from_millis(150);
 const DUPLICATE_WINDOW: Duration = Duration::from_millis(1200);
-const TEST_TEXT: &str = "你好，这是选读的测试语音。";
+const TEST_TEXT: &str = "欢迎使用选读。现在请听一段更完整的试听语音，用来感受当前音色、语速和表达方式是否符合你的预期。";
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -397,11 +397,24 @@ impl AppState {
     pub async fn preview_voice(self: &Arc<Self>, speaker_id: String) -> Result<(), String> {
         let voice =
             find_voice(&speaker_id).ok_or_else(|| "该音色不在内置中文 2.0 目录中。".to_owned())?;
+        let instruction_enabled = self
+            .settings()
+            .voice_instruction
+            .as_ref()
+            .is_some_and(|instruction| !instruction.trim().is_empty());
         self.preview_speech(
             voice.speaker_id.clone(),
             voice.resource_id.clone(),
             TEST_TEXT,
-            format!("正在试听 {}。", voice.name),
+            format!(
+                "已完成 {} 试听{}。",
+                voice.name,
+                if instruction_enabled {
+                    "，语音指令已应用"
+                } else {
+                    ""
+                }
+            ),
         )
         .await
     }
@@ -609,6 +622,16 @@ impl AppState {
         let settings = self.settings();
         let voice_instruction =
             supported_voice_instruction(&speaker, settings.voice_instruction.clone());
+        if let Some(instruction) = voice_instruction.as_ref() {
+            self.diagnostics.record(
+                "tts",
+                Some("voice_instruction_attached"),
+                &format!(
+                    "voice instruction attached ({} chars)",
+                    instruction.chars().count()
+                ),
+            );
+        }
         let options = TtsOptions {
             api_key,
             resource_id,

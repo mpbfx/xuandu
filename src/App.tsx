@@ -762,6 +762,7 @@ export default function App() {
                       </button>
                     ))}
                   </div>
+                  <p className="instruction-help">短指令会自动补成完整的朗读要求；试听使用较长文案，便于对比表达差异。</p>
                   <label className="instruction-field">
                     <span className="sr-only">自定义语音指令</span>
                     <textarea

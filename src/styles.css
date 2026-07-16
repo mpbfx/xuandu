@@ -853,6 +853,13 @@ h1 {
   margin-top: 0;
 }
 
+.instruction-help {
+  margin: 0;
+  color: #7b8078;
+  font-size: 0.61rem;
+  line-height: 1.4;
+}
+
 .instruction-presets button {
   border: 1px solid #d4c6b0;
   border-radius: 999px;
