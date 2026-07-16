@@ -17,6 +17,8 @@ pub struct AppSettings {
     pub speech_rate: i32,
     pub loudness_rate: i32,
     #[serde(default)]
+    pub pitch: i32,
+    #[serde(default)]
     pub voice_instruction: Option<String>,
     pub shortcut: String,
     #[serde(default)]
@@ -32,6 +34,7 @@ impl Default for AppSettings {
             custom_speaker_id: None,
             speech_rate: 0,
             loudness_rate: 0,
+            pitch: 0,
             voice_instruction: None,
             shortcut: default_shortcut().to_owned(),
             favorite_speaker_ids: Vec::new(),
@@ -47,6 +50,7 @@ pub struct SettingsPatch {
     pub custom_speaker_id: Option<String>,
     pub speech_rate: Option<i32>,
     pub loudness_rate: Option<i32>,
+    pub pitch: Option<i32>,
     pub voice_instruction: Option<String>,
     pub shortcut: Option<String>,
     pub favorite_speaker_ids: Option<Vec<String>>,
@@ -68,6 +72,9 @@ impl AppSettings {
         }
         if let Some(loudness_rate) = patch.loudness_rate {
             next.loudness_rate = loudness_rate;
+        }
+        if let Some(pitch) = patch.pitch {
+            next.pitch = pitch;
         }
         if let Some(voice_instruction) = patch.voice_instruction {
             next.voice_instruction = normalize_optional_text(&voice_instruction);
@@ -102,6 +109,9 @@ impl AppSettings {
         }
         if !(-50..=100).contains(&self.loudness_rate) {
             return Err("音量必须在 0.5× 到 2.0× 之间。".to_owned());
+        }
+        if !(-12..=12).contains(&self.pitch) {
+            return Err("音调必须在 -12 到 +12 半音之间。".to_owned());
         }
         if self
             .voice_instruction
@@ -287,6 +297,16 @@ mod tests {
     fn invalid_rate_is_rejected() {
         let result = AppSettings::default().apply_patch(SettingsPatch {
             speech_rate: Some(101),
+            ..Default::default()
+        });
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn invalid_pitch_is_rejected() {
+        let result = AppSettings::default().apply_patch(SettingsPatch {
+            pitch: Some(13),
             ..Default::default()
         });
 

@@ -11,6 +11,7 @@ import {
   Keyboard,
   LockKeyhole,
   MessageSquareText,
+  Music2,
   Info,
   Play,
   Power,
@@ -51,6 +52,7 @@ const DEFAULT_SETTINGS: Settings = {
   customSpeakerId: null,
   speechRate: 0,
   loudnessRate: 0,
+  pitch: 0,
   voiceInstruction: null,
   shortcut: "Command+Option+R",
   favoriteSpeakerIds: [],
@@ -768,6 +770,17 @@ export default function App() {
                   value={settings.loudnessRate}
                   onChange={(loudnessRate) => queueSettings({ loudnessRate })}
                 />
+                <RangeControl
+                  id="pitch"
+                  label="音调"
+                  value={settings.pitch}
+                  min={-12}
+                  max={12}
+                  step={1}
+                  formatValue={(pitch) => `${pitch > 0 ? "+" : ""}${pitch}`}
+                  icon="pitch"
+                  onChange={(pitch) => queueSettings({ pitch })}
+                />
               </div>
 
               <details className="voice-instruction">
@@ -976,27 +989,39 @@ function RangeControl({
   label,
   value,
   onChange,
+  min = RATE_MIN,
+  max = RATE_MAX,
+  step = 5,
+  formatValue = rateMultiplier,
+  icon = "volume",
 }: {
   id: string;
   label: string;
   value: number;
   onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  formatValue?: (value: number) => string;
+  icon?: "volume" | "pitch";
 }) {
+  const Icon = icon === "pitch" ? Music2 : Volume2;
+  const displayValue = formatValue(value);
   return (
     <div className="range-control">
-      <label className="button-with-icon" htmlFor={id}><Volume2 size={13} aria-hidden="true" />{label}</label>
+      <label className="button-with-icon" htmlFor={id}><Icon size={13} aria-hidden="true" />{label}</label>
       <div>
         <input
           id={id}
           type="range"
-          min={RATE_MIN}
-          max={RATE_MAX}
-          step="5"
+          min={min}
+          max={max}
+          step={step}
           value={value}
           onChange={(event) => onChange(Number(event.target.value))}
-          aria-valuetext={rateMultiplier(value)}
+          aria-valuetext={displayValue}
         />
-        <output htmlFor={id}>{rateMultiplier(value)}</output>
+        <output htmlFor={id}>{displayValue}</output>
       </div>
     </div>
   );

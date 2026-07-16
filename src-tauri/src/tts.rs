@@ -23,6 +23,7 @@ pub struct TtsOptions {
     pub speaker: String,
     pub speech_rate: i32,
     pub loudness_rate: i32,
+    pub pitch: i32,
     pub voice_instruction: Option<String>,
     pub sample_rate: u32,
 }
@@ -180,6 +181,9 @@ fn request_body<'a>(text: &'a str, options: &'a TtsOptions) -> TtsRequest<'a> {
                 speech_rate: options.speech_rate,
                 loudness_rate: options.loudness_rate,
             },
+            post_process: PostProcess {
+                pitch: options.pitch,
+            },
             context_texts: options
                 .voice_instruction
                 .as_ref()
@@ -214,6 +218,7 @@ struct RequestParams<'a> {
     text: &'a str,
     speaker: &'a str,
     audio_params: AudioParams,
+    post_process: PostProcess,
     #[serde(skip_serializing_if = "Option::is_none")]
     context_texts: Option<Vec<String>>,
     additions: String,
@@ -225,6 +230,11 @@ struct AudioParams {
     sample_rate: u32,
     speech_rate: i32,
     loudness_rate: i32,
+}
+
+#[derive(Serialize)]
+struct PostProcess {
+    pitch: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -364,6 +374,7 @@ mod tests {
             speaker: "speaker-id".to_owned(),
             speech_rate: 0,
             loudness_rate: 0,
+            pitch: -3,
             voice_instruction: Some("请用温柔、自然的语气说话。".to_owned()),
             sample_rate: 48_000,
         };
@@ -371,6 +382,7 @@ mod tests {
 
         assert_eq!(body["user"]["uid"], "xuandu-desktop");
         assert_eq!(body["req_params"]["audio_params"]["format"], "pcm");
+        assert_eq!(body["req_params"]["post_process"]["pitch"], -3);
         assert_eq!(
             body["req_params"]["context_texts"][0],
             "请用温柔、自然的语气说话。"
@@ -391,6 +403,7 @@ mod tests {
             speaker: "speaker-id".to_owned(),
             speech_rate: 0,
             loudness_rate: 0,
+            pitch: 0,
             voice_instruction: None,
             sample_rate: 48_000,
         };

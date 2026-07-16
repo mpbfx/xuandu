@@ -45,6 +45,7 @@ struct DiagnosticSettings {
     uses_custom_speaker: bool,
     speech_rate: i32,
     loudness_rate: i32,
+    pitch: i32,
     shortcut: String,
     launch_at_login: bool,
 }
@@ -111,6 +112,7 @@ impl DiagnosticStore {
                 uses_custom_speaker: settings.custom_speaker_id.is_some(),
                 speech_rate: settings.speech_rate,
                 loudness_rate: settings.loudness_rate,
+                pitch: settings.pitch,
                 shortcut: settings.shortcut.clone(),
                 launch_at_login: settings.launch_at_login,
             },

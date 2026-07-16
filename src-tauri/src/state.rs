@@ -663,6 +663,7 @@ impl AppState {
             speaker,
             speech_rate: settings.speech_rate,
             loudness_rate: settings.loudness_rate,
+            pitch: settings.pitch,
             voice_instruction,
             sample_rate: playback.sample_rate(),
         };
