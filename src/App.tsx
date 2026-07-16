@@ -5,6 +5,7 @@ import {
   AudioLines,
   CheckCircle2,
   CircleAlert,
+  ChevronDown,
   FileDown,
   Heart,
   KeyRound,
@@ -54,7 +55,6 @@ const DEFAULT_SETTINGS: Settings = {
   loudnessRate: 0,
   pitch: 0,
   voiceInstruction: null,
-  embedVoiceInstruction: true,
   shortcut: "Command+Option+R",
   favoriteSpeakerIds: [],
   launchAtLogin: false,
@@ -68,11 +68,12 @@ const EMPTY_CATALOG: VoiceCatalog = {
 };
 
 const VOICE_INSTRUCTION_PRESETS = [
-  { label: "温柔自然", value: "请用温柔、自然、放松的语气说话。" },
-  { label: "新闻播报", value: "请用清晰、沉稳、专业的新闻播报语气说话。" },
-  { label: "充满活力", value: "请用充满活力、明快且有感染力的语气说话。" },
-  { label: "低沉严肃", value: "请用低沉、严肃、克制的语气说话。" },
-  { label: "悲伤痛心", value: "请用悲伤、痛心但保持清晰的语气说话。" },
+  { id: "natural", label: "自然", description: "保留音色原本的表达", value: "" },
+  { id: "gentle", label: "温和", description: "放松、亲近、轻柔", value: "请用温柔、自然、放松的语气说话。" },
+  { id: "broadcast", label: "播报", description: "清晰、沉稳、专业", value: "请用清晰、沉稳、专业的新闻播报语气说话。" },
+  { id: "bright", label: "活力", description: "明快、有感染力", value: "请用充满活力、明快且有感染力的语气说话。" },
+  { id: "serious", label: "沉稳", description: "低沉、严肃、克制", value: "请用低沉、严肃、克制的语气说话。" },
+  { id: "sad", label: "悲伤", description: "缓慢、痛心、清晰", value: "请用悲伤、痛心但保持清晰的语气说话。" },
 ] as const;
 
 type Tab = "general" | "voices" | "advanced";
@@ -291,7 +292,9 @@ export default function App() {
   const usingCustomVoice = isCustomVoice(settings);
   const currentVoiceName = usingCustomVoice ? "自定义音色" : selectedVoice?.name ?? "未选择";
   const voiceInstruction = settings.voiceInstruction?.trim() ?? "";
-  const instructionSummary = voiceInstruction || "未设置，使用音色默认表达";
+  const selectedExpression = VOICE_INSTRUCTION_PRESETS.find((preset) => preset.value === voiceInstruction);
+  const expressionName = selectedExpression?.label ?? "自定义";
+  const expressionDescription = selectedExpression?.description ?? "按你的要求调整表达";
 
   const filteredVoices = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -784,85 +787,87 @@ export default function App() {
                 />
               </div>
 
-              <details className="voice-instruction">
-                <summary>
-                  <span className="button-with-icon">
-                    <MessageSquareText size={14} aria-hidden="true" />语音指令
-                    <em className="experimental-badge">实验</em>
-                  </span>
-                  <small title={instructionSummary}>{instructionSummary}</small>
-                </summary>
-                <div className="voice-instruction-body">
-                  {usingCustomVoice && (
-                    <p className="instruction-warning" role="note">
-                      豆包当前仅对官方 Seed TTS 2.0 音色支持语音指令；自定义 Speaker ID 不会发送该字段。
-                    </p>
-                  )}
-                  <div className="instruction-presets" aria-label="常用语音指令">
-                    {VOICE_INSTRUCTION_PRESETS.map((preset) => (
-                      <button
-                        className={voiceInstruction === preset.value ? "active" : ""}
-                        type="button"
-                        key={preset.label}
-                        onClick={() => queueSettings({ voiceInstruction: preset.value })}
-                        disabled={usingCustomVoice}
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                  </div>
-                  <label className="instruction-embedding-toggle">
+              <section className="expression-panel" aria-labelledby="expression-title">
+                <div className="expression-header">
+                  <div className="expression-heading">
+                    <span className="expression-icon"><MessageSquareText size={15} aria-hidden="true" /></span>
                     <span>
-                      <strong>隐藏前缀增强</strong>
-                      <small>{settings.embedVoiceInstruction ? "效果更强，开始播放可能稍慢" : "仅使用豆包 context_texts 软提示"}</small>
+                      <strong id="expression-title">表达方式</strong>
+                      <small>{expressionName} · {expressionDescription}</small>
                     </span>
-                    <input
-                      type="checkbox"
-                      checked={settings.embedVoiceInstruction}
-                      onChange={(event) => queueSettings({ embedVoiceInstruction: event.target.checked }, 0)}
-                      disabled={usingCustomVoice}
-                    />
-                  </label>
-                  <label className="instruction-field">
-                    <span className="sr-only">自定义语音指令</span>
-                    <textarea
-                      value={settings.voiceInstruction ?? ""}
-                      onChange={(event) => queueSettings({ voiceInstruction: event.target.value })}
-                      placeholder="例如：请用温柔、放松的语气说话。"
-                      maxLength={300}
-                      disabled={usingCustomVoice}
-                      rows={2}
-                    />
-                    <span>{voiceInstruction.length}/300</span>
-                  </label>
-                  <div className="instruction-actions">
-                    <button
-                      className="secondary-button button-with-icon"
-                      type="button"
-                      onClick={() => queueSettings({ voiceInstruction: "" }, 0)}
-                      disabled={!voiceInstruction}
-                    >
-                      清除指令
-                    </button>
+                  </div>
+                  <div className="expression-preview-actions">
                     <button
                       className="secondary-button button-with-icon"
                       type="button"
                       onClick={() => void previewCurrentVoice(false)}
                       disabled={usingCustomVoice || previewingSpeakerId !== null}
                     >
-                      <Play size={12} aria-hidden="true" />A · 原声
+                      <Play size={12} aria-hidden="true" />原声
                     </button>
                     <button
-                      className="primary-button instruction-preview-button button-with-icon"
+                      className="primary-button button-with-icon"
                       type="button"
-                      onClick={() => void previewCurrentVoice(true)}
-                      disabled={usingCustomVoice || !voiceInstruction || previewingSpeakerId !== null}
+                      onClick={() => void previewCurrentVoice(Boolean(voiceInstruction))}
+                      disabled={usingCustomVoice || previewingSpeakerId !== null}
                     >
-                      <MessageSquareText size={12} aria-hidden="true" />B · 指令
+                      <AudioLines size={13} aria-hidden="true" />{previewingSpeakerId ? "试听中…" : "试听当前"}
                     </button>
                   </div>
                 </div>
-              </details>
+                <div className="expression-presets" aria-label="表达方式预设">
+                  {VOICE_INSTRUCTION_PRESETS.map((preset) => (
+                    <button
+                      className={voiceInstruction === preset.value ? "active" : ""}
+                      type="button"
+                      key={preset.id}
+                      title={preset.description}
+                      aria-pressed={voiceInstruction === preset.value}
+                      onClick={() => queueSettings({ voiceInstruction: preset.value }, 0)}
+                      disabled={usingCustomVoice}
+                    >
+                      {preset.label}
+                      {voiceInstruction === preset.value && <CheckCircle2 size={12} aria-hidden="true" />}
+                    </button>
+                  ))}
+                </div>
+                <details className="custom-expression">
+                  <summary>
+                    <span>自定义表达要求</span>
+                    <span>{!selectedExpression && voiceInstruction ? "已启用" : "高级"}<ChevronDown size={13} aria-hidden="true" /></span>
+                  </summary>
+                  <div className="custom-expression-body">
+                  {usingCustomVoice && (
+                    <p className="instruction-warning" role="note">
+                      自定义 Speaker ID 不发送表达指令。请切换到官方 Seed TTS 2.0 音色。
+                    </p>
+                  )}
+                  <label className="instruction-field">
+                    <span>用一句话描述想要的语气</span>
+                    <textarea
+                      value={settings.voiceInstruction ?? ""}
+                      onChange={(event) => queueSettings({ voiceInstruction: event.target.value })}
+                      placeholder="例如：请用温柔、放松的语气说话。"
+                      maxLength={300}
+                      disabled={usingCustomVoice}
+                      rows={3}
+                    />
+                    <span>{voiceInstruction.length}/300</span>
+                  </label>
+                  <div className="custom-expression-footer">
+                    <p><Info size={12} aria-hidden="true" />表达效果会受正文语义、标点和音色影响。</p>
+                    <button
+                      className="secondary-button button-with-icon"
+                      type="button"
+                      onClick={() => queueSettings({ voiceInstruction: "" }, 0)}
+                      disabled={!voiceInstruction}
+                    >
+                      恢复自然
+                    </button>
+                  </div>
+                  </div>
+                </details>
+              </section>
             </section>
           )}
 

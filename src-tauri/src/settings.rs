@@ -20,8 +20,6 @@ pub struct AppSettings {
     pub pitch: i32,
     #[serde(default)]
     pub voice_instruction: Option<String>,
-    #[serde(default = "default_true")]
-    pub embed_voice_instruction: bool,
     pub shortcut: String,
     #[serde(default)]
     pub favorite_speaker_ids: Vec<String>,
@@ -38,7 +36,6 @@ impl Default for AppSettings {
             loudness_rate: 0,
             pitch: 0,
             voice_instruction: None,
-            embed_voice_instruction: true,
             shortcut: default_shortcut().to_owned(),
             favorite_speaker_ids: Vec::new(),
             launch_at_login: false,
@@ -55,7 +52,6 @@ pub struct SettingsPatch {
     pub loudness_rate: Option<i32>,
     pub pitch: Option<i32>,
     pub voice_instruction: Option<String>,
-    pub embed_voice_instruction: Option<bool>,
     pub shortcut: Option<String>,
     pub favorite_speaker_ids: Option<Vec<String>>,
     pub launch_at_login: Option<bool>,
@@ -82,9 +78,6 @@ impl AppSettings {
         }
         if let Some(voice_instruction) = patch.voice_instruction {
             next.voice_instruction = normalize_optional_text(&voice_instruction);
-        }
-        if let Some(embed_voice_instruction) = patch.embed_voice_instruction {
-            next.embed_voice_instruction = embed_voice_instruction;
         }
         if let Some(shortcut) = patch.shortcut {
             next.shortcut = shortcut.trim().to_owned();
@@ -181,10 +174,6 @@ impl SettingsStore {
 fn normalize_optional_text(value: &str) -> Option<String> {
     let value = value.trim();
     (!value.is_empty()).then(|| value.to_owned())
-}
-
-const fn default_true() -> bool {
-    true
 }
 
 fn normalize_favorites(favorites: Vec<String>) -> Vec<String> {
@@ -353,16 +342,6 @@ mod tests {
             ..Default::default()
         });
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn legacy_settings_enable_hidden_instruction_embedding_by_default() {
-        let json = serde_json::to_value(AppSettings::default()).unwrap();
-        let mut object = json.as_object().unwrap().clone();
-        object.remove("embedVoiceInstruction");
-
-        let settings: AppSettings = serde_json::from_value(object.into()).unwrap();
-        assert!(settings.embed_voice_instruction);
     }
 
     #[test]

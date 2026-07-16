@@ -665,7 +665,6 @@ impl AppState {
             loudness_rate: settings.loudness_rate,
             pitch: settings.pitch,
             voice_instruction,
-            embed_voice_instruction: settings.embed_voice_instruction,
             sample_rate: playback.sample_rate(),
         };
         let result = self.tts.synthesize_into(text, &options, &playback).await;

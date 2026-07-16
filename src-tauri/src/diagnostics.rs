@@ -46,7 +46,6 @@ struct DiagnosticSettings {
     speech_rate: i32,
     loudness_rate: i32,
     pitch: i32,
-    embed_voice_instruction: bool,
     shortcut: String,
     launch_at_login: bool,
 }
@@ -114,7 +113,6 @@ impl DiagnosticStore {
                 speech_rate: settings.speech_rate,
                 loudness_rate: settings.loudness_rate,
                 pitch: settings.pitch,
-                embed_voice_instruction: settings.embed_voice_instruction,
                 shortcut: settings.shortcut.clone(),
                 launch_at_login: settings.launch_at_login,
             },
