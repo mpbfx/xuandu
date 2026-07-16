@@ -1,0 +1,43 @@
+[package]
+name = "xuandu"
+version = "0.1.0"
+description = "Select text and listen with Doubao Speech"
+authors = ["mpbfx"]
+edition = "2021"
+
+[lib]
+name = "xuandu_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+base64 = "0.22"
+cpal = "0.15"
+futures-util = "0.3"
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+parking_lot = "0.12"
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-autostart = "2.5.1"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-single-instance = "2.4.3"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+uuid = { version = "1", features = ["v4"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+rdev = "0.5"
+windows = { version = "0.58", features = [
+  "Win32_Foundation",
+  "Win32_System_Com",
+  "Win32_UI_Accessibility",
+  "Win32_UI_WindowsAndMessaging",
+] }

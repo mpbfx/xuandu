@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-labelledby="title desc">
+  <title id="title">选读：选中文字，自然朗读</title>
+  <desc id="desc">一款面向 macOS 和 Windows 的托盘常驻工具，将鼠标选中的文字流式合成为中文语音。</desc>
+  <defs>
+    <linearGradient id="bg" x1="80" y1="24" x2="1110" y2="404" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#315844"/>
+      <stop offset="1" stop-color="#13271E"/>
+    </linearGradient>
+    <linearGradient id="selection" x1="736" y1="172" x2="1040" y2="256" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E4AE60"/>
+      <stop offset="1" stop-color="#B96B2D"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="420" rx="30" fill="url(#bg)"/>
+  <path d="M0 334C260 270 430 436 710 354C930 290 1060 300 1200 338V420H0Z" fill="#F7EEDC" fill-opacity="0.035"/>
+
+  <g transform="translate(68 58)" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">
+    <text x="0" y="0" fill="#E3AA5C" font-size="15" font-weight="700" letter-spacing="4">XUANDU · SELECT TO LISTEN</text>
+    <text x="0" y="96" fill="#FFF8EA" font-size="84" font-weight="750" letter-spacing="-6">选读</text>
+    <text x="0" y="148" fill="#E9E2D3" font-size="29" font-weight="550">鼠标选中文字，立即自然朗读。</text>
+    <text x="0" y="190" fill="#AFC2B6" font-size="18">Tauri 2 · Rust · React · 豆包 Seed TTS 2.0</text>
+
+    <g transform="translate(0 230)" font-size="16" font-weight="650">
+      <rect width="146" height="40" rx="20" fill="#F8F0DF" fill-opacity="0.11" stroke="#F8F0DF" stroke-opacity="0.2"/>
+      <circle cx="23" cy="20" r="5" fill="#E3AA5C"/>
+      <text x="38" y="26" fill="#F8F0DF">99 个中文音色</text>
+      <g transform="translate(160 0)">
+        <rect width="142" height="40" rx="20" fill="#F8F0DF" fill-opacity="0.11" stroke="#F8F0DF" stroke-opacity="0.2"/>
+        <path d="M19 14V26M25 10V30M31 16V24" stroke="#E3AA5C" stroke-width="3" stroke-linecap="round"/>
+        <text x="45" y="26" fill="#F8F0DF">流式 PCM 播放</text>
+      </g>
+      <g transform="translate(316 0)">
+        <rect width="122" height="40" rx="20" fill="#F8F0DF" fill-opacity="0.11" stroke="#F8F0DF" stroke-opacity="0.2"/>
+        <path d="M19 16V13A6 6 0 0 1 31 13V16M17 16H33V29H17Z" fill="none" stroke="#E3AA5C" stroke-width="2"/>
+        <text x="44" y="26" fill="#F8F0DF">本地优先</text>
+      </g>
+    </g>
+  </g>
+
+  <g transform="translate(650 48)" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">
+    <rect width="486" height="324" rx="24" fill="#F8F0DF"/>
+    <rect width="486" height="43" rx="24" fill="#E9E0CF"/>
+    <rect y="22" width="486" height="21" fill="#E9E0CF"/>
+    <circle cx="24" cy="21" r="6" fill="#C45D4A"/>
+    <circle cx="44" cy="21" r="6" fill="#D69A3B"/>
+    <circle cx="64" cy="21" r="6" fill="#5C936D"/>
+    <text x="211" y="27" fill="#59645C" font-size="13" font-weight="650">选读</text>
+
+    <text x="26" y="80" fill="#A6622C" font-size="10" font-weight="750" letter-spacing="2">SELECT TO LISTEN</text>
+    <text x="26" y="116" fill="#233B30" font-size="30" font-weight="750">当前音色 · 甜美桃子</text>
+
+    <rect x="26" y="140" width="434" height="88" rx="13" fill="#FFFFFF" fill-opacity="0.64" stroke="#D9CDB9"/>
+    <rect x="43" y="159" width="300" height="48" rx="10" fill="url(#selection)"/>
+    <path d="M59 177H280M59 192H230" stroke="#FFF8EA" stroke-width="7" stroke-linecap="round"/>
+    <path d="M372 177V190M390 164V204M408 173V195M426 180V188" stroke="#315844" stroke-width="6" stroke-linecap="round"/>
+
+    <rect x="26" y="244" width="258" height="52" rx="10" fill="#294D3B"/>
+    <circle cx="53" cy="270" r="7" fill="#E3AA5C"/>
+    <text x="72" y="276" fill="#FFF9EC" font-size="16" font-weight="700">等待选中文字</text>
+    <rect x="298" y="244" width="162" height="52" rx="10" fill="#F3E8D4" stroke="#D6C7AF"/>
+    <text x="324" y="276" fill="#7E4A24" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" font-weight="700">⌘ ⌥ R</text>
+  </g>
+</svg>

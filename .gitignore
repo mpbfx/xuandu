@@ -1,0 +1,15 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+.DS_Store
+.env
+.env.*
+*.dmg
+*.log
+*.log.jsonl
+*.diagnostics.json
+
+# Runtime data and developer secrets must never be versioned.
+*.local.json
+*.key

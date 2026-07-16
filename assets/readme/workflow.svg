@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="330" viewBox="0 0 1200 330" role="img" aria-labelledby="title desc">
+  <title id="title">选读的本地数据流</title>
+  <desc id="desc">文字从系统辅助功能选区进入内存，发送到火山引擎语音服务，返回 PCM 流并立即播放，不写入历史。</desc>
+  <rect width="1200" height="330" rx="28" fill="#F7F0E2"/>
+  <text x="54" y="56" fill="#A25D29" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700" letter-spacing="2">LOCAL-FIRST DATA FLOW</text>
+  <text x="54" y="96" fill="#263D32" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif" font-size="30" font-weight="750">一次选区，一次请求，不留历史</text>
+
+  <g transform="translate(54 138)" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, sans-serif">
+    <g>
+      <rect width="222" height="130" rx="18" fill="#FFFDF7" stroke="#D8CCB7" stroke-width="2"/>
+      <rect x="22" y="25" width="96" height="30" rx="8" fill="#D58B3E"/>
+      <path d="M32 36H105M32 47H86" stroke="#FFF8EB" stroke-width="5" stroke-linecap="round"/>
+      <text x="22" y="88" fill="#2C4337" font-size="18" font-weight="750">01 鼠标选区</text>
+      <text x="22" y="111" fill="#788078" font-size="14">2–5000 个字</text>
+    </g>
+
+    <path d="M238 65H280" stroke="#B6783F" stroke-width="3" stroke-linecap="round"/>
+    <path d="M271 56L282 65L271 74" fill="none" stroke="#B6783F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(298 0)">
+      <rect width="222" height="130" rx="18" fill="#FFFDF7" stroke="#D8CCB7" stroke-width="2"/>
+      <path d="M24 27H64V57H24ZM34 37H54M34 47H49" fill="none" stroke="#315844" stroke-width="4" stroke-linecap="round"/>
+      <text x="22" y="88" fill="#2C4337" font-size="18" font-weight="750">02 系统选区接口</text>
+      <text x="22" y="111" fill="#788078" font-size="14">AX API / UI Automation</text>
+    </g>
+
+    <path d="M536 65H578" stroke="#B6783F" stroke-width="3" stroke-linecap="round"/>
+    <path d="M569 56L580 65L569 74" fill="none" stroke="#B6783F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(596 0)">
+      <rect width="222" height="130" rx="18" fill="#FFFDF7" stroke="#D8CCB7" stroke-width="2"/>
+      <path d="M24 42C36 25 52 25 64 42C52 59 36 59 24 42Z" fill="none" stroke="#315844" stroke-width="4"/>
+      <circle cx="44" cy="42" r="6" fill="#D58B3E"/>
+      <text x="22" y="88" fill="#2C4337" font-size="18" font-weight="750">03 Seed TTS 2.0</text>
+      <text x="22" y="111" fill="#788078" font-size="14">分段合成 · 可取消</text>
+    </g>
+
+    <path d="M834 65H876" stroke="#B6783F" stroke-width="3" stroke-linecap="round"/>
+    <path d="M867 56L878 65L867 74" fill="none" stroke="#B6783F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(894 0)">
+      <rect width="222" height="130" rx="18" fill="#294D3B"/>
+      <path d="M25 43V52M39 31V64M53 23V72M67 35V60" stroke="#E4AE60" stroke-width="6" stroke-linecap="round"/>
+      <text x="22" y="88" fill="#FFF9EC" font-size="18" font-weight="750">04 PCM 流式播放</text>
+      <text x="22" y="111" fill="#C7D5CD" font-size="14">新选区立即打断旧音频</text>
+    </g>
+  </g>
+</svg>
