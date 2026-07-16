@@ -57,8 +57,12 @@ fn toggle_reading(state: State<'_, Arc<AppState>>) -> Result<AppStatus, String> 
 }
 
 #[tauri::command]
-async fn preview_voice(speaker_id: String, state: State<'_, Arc<AppState>>) -> Result<(), String> {
-    state.preview_voice(speaker_id).await
+async fn preview_voice(
+    speaker_id: String,
+    apply_instruction: bool,
+    state: State<'_, Arc<AppState>>,
+) -> Result<(), String> {
+    state.preview_voice(speaker_id, apply_instruction).await
 }
 
 #[tauri::command]

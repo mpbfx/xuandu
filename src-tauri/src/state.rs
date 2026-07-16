@@ -394,25 +394,44 @@ impl AppState {
         let _ = self.ensure_selection_listener();
     }
 
-    pub async fn preview_voice(self: &Arc<Self>, speaker_id: String) -> Result<(), String> {
+    pub async fn preview_voice(
+        self: &Arc<Self>,
+        speaker_id: String,
+        apply_instruction: bool,
+    ) -> Result<(), String> {
         let voice =
             find_voice(&speaker_id).ok_or_else(|| "该音色不在内置中文 2.0 目录中。".to_owned())?;
-        let instruction_enabled = self
-            .settings()
-            .voice_instruction
-            .as_ref()
-            .is_some_and(|instruction| !instruction.trim().is_empty());
+        let instruction_enabled = apply_instruction
+            && self
+                .settings()
+                .voice_instruction
+                .as_ref()
+                .is_some_and(|instruction| !instruction.trim().is_empty());
+        self.diagnostics.record(
+            "preview",
+            Some(if instruction_enabled {
+                "instruction"
+            } else {
+                "original"
+            }),
+            if instruction_enabled {
+                "instruction preview started"
+            } else {
+                "original preview started"
+            },
+        );
         self.preview_speech(
             voice.speaker_id.clone(),
             voice.resource_id.clone(),
             TEST_TEXT,
+            apply_instruction,
             format!(
-                "已完成 {} 试听{}。",
+                "已完成 {} {}。",
                 voice.name,
                 if instruction_enabled {
-                    "，语音指令已应用"
+                    "语音指令试听"
                 } else {
-                    ""
+                    "原声试听"
                 }
             ),
         )
@@ -475,6 +494,7 @@ impl AppState {
         speaker: String,
         resource_id: String,
         text: &str,
+        apply_instruction: bool,
         success_message: impl Into<String>,
     ) -> Result<(), String> {
         if self.secrets.get()?.is_none() {
@@ -487,7 +507,7 @@ impl AppState {
         let job_id = self.speech_epoch.fetch_add(1, Ordering::SeqCst) + 1;
         self.audio.stop();
         let result = self
-            .run_speech_with_voice(job_id, text, speaker, resource_id)
+            .run_speech_with_voice(job_id, text, speaker, resource_id, apply_instruction)
             .await;
         if self.speech_epoch.load(Ordering::SeqCst) != job_id {
             return Ok(());
@@ -577,6 +597,7 @@ impl AppState {
                     &text,
                     settings.active_speaker().to_owned(),
                     resource_id_for(settings.active_speaker()).to_owned(),
+                    true,
                 )
                 .await;
             if state.speech_epoch.load(Ordering::SeqCst) != job_id {
@@ -610,6 +631,7 @@ impl AppState {
         text: &str,
         speaker: String,
         resource_id: String,
+        apply_instruction: bool,
     ) -> Result<(), String> {
         let api_key = self
             .secrets
@@ -620,8 +642,11 @@ impl AppState {
         self.clear_notice();
 
         let settings = self.settings();
-        let voice_instruction =
-            supported_voice_instruction(&speaker, settings.voice_instruction.clone());
+        let voice_instruction = supported_voice_instruction(
+            &speaker,
+            settings.voice_instruction.clone(),
+            apply_instruction,
+        );
         if let Some(instruction) = voice_instruction.as_ref() {
             self.diagnostics.record(
                 "tts",
@@ -716,9 +741,12 @@ fn parse_shortcut(value: &str) -> Result<Shortcut, String> {
         .map_err(|_| "快捷键格式无效，例如 Command+Option+R 或 Ctrl+Alt+R。".to_owned())
 }
 
-fn supported_voice_instruction(speaker: &str, instruction: Option<String>) -> Option<String> {
-    find_voice(speaker)
-        .is_some()
+fn supported_voice_instruction(
+    speaker: &str,
+    instruction: Option<String>,
+    enabled: bool,
+) -> Option<String> {
+    (enabled && find_voice(speaker).is_some())
         .then_some(instruction)
         .flatten()
 }
@@ -862,9 +890,10 @@ mod tests {
     fn voice_instruction_is_only_sent_for_bundled_seed_tts_two_voices() {
         let instruction = Some("请用温柔的语气说话。".to_owned());
         assert_eq!(
-            supported_voice_instruction(DEFAULT_SPEAKER, instruction.clone()),
+            supported_voice_instruction(DEFAULT_SPEAKER, instruction.clone(), true),
             instruction
         );
-        assert!(supported_voice_instruction("custom-speaker", instruction).is_none());
+        assert!(supported_voice_instruction("custom-speaker", instruction.clone(), true).is_none());
+        assert!(supported_voice_instruction(DEFAULT_SPEAKER, instruction, false).is_none());
     }
 }

@@ -404,11 +404,11 @@ export default function App() {
     queueSettings({ favoriteSpeakerIds: nextFavorites }, 0);
   }
 
-  async function previewVoice(speakerId: string) {
+  async function previewVoice(speakerId: string, applyInstruction = false) {
     setPreviewingSpeakerId(speakerId);
     setFeedback(null);
     try {
-      await desktop.previewVoice(speakerId);
+      await desktop.previewVoice(speakerId, applyInstruction);
     } catch (error) {
       setUnavailableSpeakerIds((current) => new Set(current).add(speakerId));
       showFeedback(readableError(error), "error");
@@ -417,13 +417,13 @@ export default function App() {
     }
   }
 
-  async function previewCurrentVoice() {
+  async function previewCurrentVoice(applyInstruction: boolean) {
     if (saveTimer.current !== undefined) {
       window.clearTimeout(saveTimer.current);
       saveTimer.current = undefined;
     }
     await flushSettings();
-    await previewVoice(settings.speakerId);
+    await previewVoice(settings.speakerId, applyInstruction);
   }
 
   async function beginShortcutRecording() {
@@ -742,7 +742,7 @@ export default function App() {
                           <button
                             className="preview-button"
                             type="button"
-                            onClick={() => void previewVoice(voice.speakerId)}
+                            onClick={() => void previewVoice(voice.speakerId, false)}
                             disabled={previewing}
                           >
                             {!previewing && !unavailable && <Play size={12} aria-hidden="true" />}
@@ -772,7 +772,10 @@ export default function App() {
 
               <details className="voice-instruction">
                 <summary>
-                  <span className="button-with-icon"><MessageSquareText size={14} aria-hidden="true" />语音指令</span>
+                  <span className="button-with-icon">
+                    <MessageSquareText size={14} aria-hidden="true" />语音指令
+                    <em className="experimental-badge">实验</em>
+                  </span>
                   <small title={instructionSummary}>{instructionSummary}</small>
                 </summary>
                 <div className="voice-instruction-body">
@@ -794,7 +797,7 @@ export default function App() {
                       </button>
                     ))}
                   </div>
-                  <p className="instruction-help">短指令会自动补成完整的朗读要求；试听使用较长文案，便于对比表达差异。</p>
+                  <p className="instruction-help">这是表达倾向而非硬性情绪开关：文本语义和标点影响最大，音色风格其次，语音指令在此基础上进行偏移。</p>
                   <label className="instruction-field">
                     <span className="sr-only">自定义语音指令</span>
                     <textarea
@@ -819,10 +822,18 @@ export default function App() {
                     <button
                       className="secondary-button button-with-icon"
                       type="button"
-                      onClick={() => void previewCurrentVoice()}
+                      onClick={() => void previewCurrentVoice(false)}
                       disabled={usingCustomVoice || previewingSpeakerId !== null}
                     >
-                      <Play size={12} aria-hidden="true" />试听当前效果
+                      <Play size={12} aria-hidden="true" />A · 原声
+                    </button>
+                    <button
+                      className="primary-button instruction-preview-button button-with-icon"
+                      type="button"
+                      onClick={() => void previewCurrentVoice(true)}
+                      disabled={usingCustomVoice || !voiceInstruction || previewingSpeakerId !== null}
+                    >
+                      <MessageSquareText size={12} aria-hidden="true" />B · 指令
                     </button>
                   </div>
                 </div>

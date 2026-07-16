@@ -828,6 +828,18 @@ h1 {
   white-space: nowrap;
 }
 
+.experimental-badge {
+  padding: 2px 5px;
+  border: 1px solid #d6b98e;
+  border-radius: 999px;
+  color: #95602b;
+  background: #f7ead4;
+  font-size: 0.52rem;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
 .voice-instruction-body {
   display: grid;
   gap: 8px;
@@ -920,7 +932,9 @@ h1 {
   gap: 7px;
 }
 
-.instruction-actions .secondary-button {
+.instruction-actions .secondary-button,
+.instruction-actions .primary-button {
+  height: auto;
   padding: 5px 8px;
   font-size: 0.63rem;
 }

@@ -15,7 +15,8 @@ export const desktop = {
     invoke<Settings>("update_settings", { patch }),
   saveApiKey: (apiKey: string) => invoke<void>("save_api_key", { apiKey }),
   toggleReading: () => invoke<AppStatus>("toggle_reading"),
-  previewVoice: (speakerId: string) => invoke<void>("preview_voice", { speakerId }),
+  previewVoice: (speakerId: string, applyInstruction: boolean) =>
+    invoke<void>("preview_voice", { speakerId, applyInstruction }),
   stopPlayback: () => invoke<AppStatus>("stop_playback"),
   requestAccessibility: () => invoke<void>("request_accessibility"),
   clearApiKey: () => invoke<void>("clear_api_key"),
