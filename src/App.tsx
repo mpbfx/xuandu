@@ -810,7 +810,7 @@ export default function App() {
                       </button>
                     ))}
                   </div>
-                  <p className="instruction-help">这是表达倾向而非硬性情绪开关：文本语义和标点影响最大，音色风格其次，语音指令在此基础上进行偏移。</p>
+                  <p className="instruction-help">指令会作为隐藏前缀增强表达，并根据豆包返回的字级时间戳裁掉前缀音频。因此不会念出指令，但开始播放可能稍慢。</p>
                   <label className="instruction-field">
                     <span className="sr-only">自定义语音指令</span>
                     <textarea

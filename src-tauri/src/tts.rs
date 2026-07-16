@@ -15,6 +15,7 @@ const MAX_SEGMENT_CHARS: usize = 450;
 const MIN_SEGMENT_CHARS: usize = 120;
 const RESPONSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 const STREAM_IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+const EMBEDDED_INSTRUCTION_BOUNDARY: &str = "正文开始";
 
 #[derive(Clone)]
 pub struct TtsOptions {
@@ -64,6 +65,11 @@ impl TtsClient {
         options: &TtsOptions,
         playback: &PlaybackHandle,
     ) -> Result<(), String> {
+        let embedded_text = options
+            .voice_instruction
+            .as_deref()
+            .map(|instruction| embedded_instruction_text(instruction, text));
+        let request_text = embedded_text.as_deref().unwrap_or(text);
         let request_id = Uuid::new_v4().to_string();
         let request = self
             .client
@@ -73,7 +79,7 @@ impl TtsClient {
                 &options.resource_id,
                 &request_id,
             )?)
-            .json(&request_body(text, options))
+            .json(&request_body(request_text, options))
             .send();
         let response = tokio::select! {
             _ = playback.cancelled() => return Ok(()),
@@ -91,6 +97,9 @@ impl TtsClient {
         let mut chunks = response.bytes_stream();
         let mut parser = TtsStreamParser::default();
         let mut received_audio = 0_usize;
+        let mut cropper = embedded_text
+            .as_ref()
+            .map(|_| InstructionAudioCropper::new(options.sample_rate));
         loop {
             let next = tokio::select! {
                 _ = playback.cancelled() => return Ok(()),
@@ -103,9 +112,24 @@ impl TtsClient {
                         match event {
                             TtsStreamEvent::Audio(audio) => {
                                 received_audio += audio.len();
-                                playback.push_pcm(&audio).await;
+                                if let Some(cropper) = cropper.as_mut() {
+                                    if let Some(audio) = cropper.push_audio(audio) {
+                                        playback.push_pcm(&audio).await;
+                                    }
+                                } else {
+                                    playback.push_pcm(&audio).await;
+                                }
                             }
-                            TtsStreamEvent::Finished => return audio_result(received_audio),
+                            TtsStreamEvent::Subtitle(words) => {
+                                if let Some(cropper) = cropper.as_mut() {
+                                    if let Some(audio) = cropper.push_words(words) {
+                                        playback.push_pcm(&audio).await;
+                                    }
+                                }
+                            }
+                            TtsStreamEvent::Finished => {
+                                return cropped_audio_result(received_audio, cropper.as_ref())
+                            }
                         }
                     }
                 }
@@ -115,12 +139,27 @@ impl TtsClient {
                         match event {
                             TtsStreamEvent::Audio(audio) => {
                                 received_audio += audio.len();
-                                playback.push_pcm(&audio).await;
+                                if let Some(cropper) = cropper.as_mut() {
+                                    if let Some(audio) = cropper.push_audio(audio) {
+                                        playback.push_pcm(&audio).await;
+                                    }
+                                } else {
+                                    playback.push_pcm(&audio).await;
+                                }
                             }
-                            TtsStreamEvent::Finished => return audio_result(received_audio),
+                            TtsStreamEvent::Subtitle(words) => {
+                                if let Some(cropper) = cropper.as_mut() {
+                                    if let Some(audio) = cropper.push_words(words) {
+                                        playback.push_pcm(&audio).await;
+                                    }
+                                }
+                            }
+                            TtsStreamEvent::Finished => {
+                                return cropped_audio_result(received_audio, cropper.as_ref())
+                            }
                         }
                     }
-                    return audio_result(received_audio);
+                    return cropped_audio_result(received_audio, cropper.as_ref());
                 }
             }
         }
@@ -180,6 +219,7 @@ fn request_body<'a>(text: &'a str, options: &'a TtsOptions) -> TtsRequest<'a> {
                 sample_rate: options.sample_rate,
                 speech_rate: options.speech_rate,
                 loudness_rate: options.loudness_rate,
+                enable_subtitle: options.voice_instruction.is_some(),
             },
             post_process: PostProcess {
                 pitch: options.pitch,
@@ -200,6 +240,13 @@ fn voice_instruction_context(instruction: &str) -> String {
     } else {
         format!("请严格按照以下要求朗读：{instruction}。")
     }
+}
+
+fn embedded_instruction_text(instruction: &str, text: &str) -> String {
+    let instruction = instruction
+        .trim()
+        .trim_end_matches(['。', '！', '？', '.', '!', '?']);
+    format!("{instruction}。{EMBEDDED_INSTRUCTION_BOUNDARY}。{text}")
 }
 
 #[derive(Serialize)]
@@ -230,6 +277,7 @@ struct AudioParams {
     sample_rate: u32,
     speech_rate: i32,
     loudness_rate: i32,
+    enable_subtitle: bool,
 }
 
 #[derive(Serialize)]
@@ -243,6 +291,8 @@ struct TtsStreamResponse {
     code: Option<i64>,
     #[serde(default)]
     data: Option<String>,
+    #[serde(default)]
+    sentence: Option<TtsSubtitle>,
     #[serde(default)]
     header: Option<TtsErrorHeader>,
 }
@@ -260,9 +310,24 @@ struct TtsErrorHeader {
     code: Option<i64>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Deserialize)]
+struct TtsSubtitle {
+    #[serde(default)]
+    words: Vec<TtsSubtitleWord>,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct TtsSubtitleWord {
+    word: String,
+    start_time: f64,
+    end_time: f64,
+}
+
+#[derive(Debug, PartialEq)]
 enum TtsStreamEvent {
     Audio(Vec<u8>),
+    Subtitle(Vec<TtsSubtitleWord>),
     Finished,
 }
 
@@ -284,11 +349,7 @@ impl TtsStreamParser {
             let mut events = Vec::new();
             while let Some(response) = stream.next() {
                 match response {
-                    Ok(response) => {
-                        if let Some(event) = response.into_event()? {
-                            events.push(event);
-                        }
-                    }
+                    Ok(response) => events.extend(response.into_events()?),
                     Err(error) if error.is_eof() => break,
                     Err(_) => return Err("无法解析火山引擎的语音响应。".to_owned()),
                 }
@@ -311,20 +372,113 @@ impl TtsStreamParser {
 }
 
 impl TtsStreamResponse {
-    fn into_event(self) -> Result<Option<TtsStreamEvent>, String> {
+    fn into_events(self) -> Result<Vec<TtsStreamEvent>, String> {
         match self.status_code().unwrap_or(0) {
-            0 => match self.data.filter(|data| !data.is_empty()) {
-                Some(data) => STANDARD
-                    .decode(data)
-                    .map(TtsStreamEvent::Audio)
-                    .map(Some)
-                    .map_err(|_| "火山引擎返回了无效的音频数据。".to_owned()),
-                None => Ok(None),
-            },
-            20_000_000 => Ok(Some(TtsStreamEvent::Finished)),
+            0 => {
+                let mut events = Vec::new();
+                if let Some(data) = self.data.filter(|data| !data.is_empty()) {
+                    events.push(TtsStreamEvent::Audio(
+                        STANDARD
+                            .decode(data)
+                            .map_err(|_| "火山引擎返回了无效的音频数据。".to_owned())?,
+                    ));
+                }
+                if let Some(sentence) = self.sentence.filter(|sentence| !sentence.words.is_empty())
+                {
+                    events.push(TtsStreamEvent::Subtitle(sentence.words));
+                }
+                Ok(events)
+            }
+            20_000_000 => Ok(vec![TtsStreamEvent::Finished]),
             code => Err(provider_error(code)),
         }
     }
+}
+
+struct InstructionAudioCropper {
+    sample_rate: u32,
+    buffered_audio: Vec<u8>,
+    words: Vec<TtsSubtitleWord>,
+    crop_at_bytes: Option<usize>,
+    released: bool,
+}
+
+impl InstructionAudioCropper {
+    fn new(sample_rate: u32) -> Self {
+        Self {
+            sample_rate,
+            buffered_audio: Vec::new(),
+            words: Vec::new(),
+            crop_at_bytes: None,
+            released: false,
+        }
+    }
+
+    fn push_audio(&mut self, audio: Vec<u8>) -> Option<Vec<u8>> {
+        if self.released {
+            return Some(audio);
+        }
+        self.buffered_audio.extend(audio);
+        self.release_if_ready()
+    }
+
+    fn push_words(&mut self, words: Vec<TtsSubtitleWord>) -> Option<Vec<u8>> {
+        self.words.extend(words);
+        if self.crop_at_bytes.is_none() {
+            self.crop_at_bytes = content_start_time(&self.words).map(|seconds| {
+                let frames = (seconds * f64::from(self.sample_rate)).round() as usize;
+                frames.saturating_mul(2)
+            });
+        }
+        self.release_if_ready()
+    }
+
+    fn release_if_ready(&mut self) -> Option<Vec<u8>> {
+        let crop_at = self.crop_at_bytes?;
+        if self.buffered_audio.len() < crop_at {
+            return None;
+        }
+        self.released = true;
+        Some(self.buffered_audio.split_off(crop_at))
+    }
+
+    fn ready(&self) -> bool {
+        self.released
+    }
+}
+
+fn content_start_time(words: &[TtsSubtitleWord]) -> Option<f64> {
+    let joined = words
+        .iter()
+        .map(|word| word.word.as_str())
+        .collect::<String>();
+    let boundary = joined.find(EMBEDDED_INSTRUCTION_BOUNDARY)?;
+    let boundary_end = boundary + EMBEDDED_INSTRUCTION_BOUNDARY.len();
+    let mut cursor = 0;
+    for word in words {
+        let next = cursor + word.word.len();
+        if cursor >= boundary_end
+            && word.word.chars().any(|character| {
+                !character.is_ascii_punctuation()
+                    && !matches!(character, '。' | '，' | '！' | '？' | '：' | '；')
+            })
+        {
+            return Some(word.start_time);
+        }
+        cursor = next;
+    }
+    None
+}
+
+fn cropped_audio_result(
+    received_audio: usize,
+    cropper: Option<&InstructionAudioCropper>,
+) -> Result<(), String> {
+    audio_result(received_audio)?;
+    if cropper.is_some_and(|cropper| !cropper.ready()) {
+        return Err("未能从语音时间戳中定位正文，已取消本次带指令的试听。".to_owned());
+    }
+    Ok(())
 }
 
 fn audio_result(received_audio: usize) -> Result<(), String> {
@@ -362,8 +516,9 @@ fn provider_error(code: i64) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        request_body, split_text, voice_instruction_context, TtsOptions, TtsStreamEvent,
-        TtsStreamParser,
+        content_start_time, embedded_instruction_text, request_body, split_text,
+        voice_instruction_context, InstructionAudioCropper, TtsOptions, TtsStreamEvent,
+        TtsStreamParser, TtsSubtitleWord,
     };
 
     #[test]
@@ -382,6 +537,7 @@ mod tests {
 
         assert_eq!(body["user"]["uid"], "xuandu-desktop");
         assert_eq!(body["req_params"]["audio_params"]["format"], "pcm");
+        assert_eq!(body["req_params"]["audio_params"]["enable_subtitle"], true);
         assert_eq!(body["req_params"]["post_process"]["pitch"], -3);
         assert_eq!(
             body["req_params"]["context_texts"][0],
@@ -409,6 +565,7 @@ mod tests {
         };
         let body = serde_json::to_value(request_body("你好", &options)).unwrap();
         assert!(body["req_params"].get("context_texts").is_none());
+        assert_eq!(body["req_params"]["audio_params"]["enable_subtitle"], false);
     }
 
     #[test]
@@ -424,6 +581,46 @@ mod tests {
     }
 
     #[test]
+    fn instruction_is_embedded_before_a_stable_boundary() {
+        assert_eq!(
+            embedded_instruction_text("请用悲伤的语气。", "今天下雨了。"),
+            "请用悲伤的语气。正文开始。今天下雨了。"
+        );
+    }
+
+    #[test]
+    fn subtitle_boundary_locates_the_first_content_word() {
+        let words = [
+            word("正文", 0.4, 0.8),
+            word("开始", 0.8, 1.1),
+            word("。", 1.1, 1.2),
+            word("今天", 1.25, 1.6),
+        ];
+
+        assert_eq!(content_start_time(&words), Some(1.25));
+    }
+
+    #[test]
+    fn cropper_releases_pcm_from_the_content_timestamp() {
+        let mut cropper = InstructionAudioCropper::new(10);
+        assert!(cropper.push_audio((0_u8..20).collect()).is_none());
+        let audio = cropper
+            .push_words(vec![word("正文开始", 0.0, 0.4), word("你好", 0.5, 0.8)])
+            .unwrap();
+
+        assert_eq!(audio, (10_u8..20).collect::<Vec<_>>());
+        assert!(cropper.ready());
+    }
+
+    fn word(word: &str, start_time: f64, end_time: f64) -> TtsSubtitleWord {
+        TtsSubtitleWord {
+            word: word.to_owned(),
+            start_time,
+            end_time,
+        }
+    }
+
+    #[test]
     fn parser_decodes_base64_audio_across_http_chunk_boundaries() {
         let mut parser = TtsStreamParser::default();
         assert!(parser.push(br#"{"code":0,"data":"AQ"#).unwrap().is_empty());
@@ -436,6 +633,25 @@ mod tests {
             vec![TtsStreamEvent::Finished]
         );
         assert!(parser.finish().unwrap().is_empty());
+    }
+
+    #[test]
+    fn parser_keeps_audio_and_subtitle_from_the_same_response() {
+        let mut parser = TtsStreamParser::default();
+        let events = parser
+            .push(
+                r#"{"code":0,"data":"AQI=","sentence":{"words":[{"word":"正文","startTime":0.1,"endTime":0.3}]}}"#
+                    .as_bytes(),
+            )
+            .unwrap();
+
+        assert_eq!(
+            events,
+            vec![
+                TtsStreamEvent::Audio(vec![1, 2]),
+                TtsStreamEvent::Subtitle(vec![word("正文", 0.1, 0.3)])
+            ]
+        );
     }
 
     #[test]
