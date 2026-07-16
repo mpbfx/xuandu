@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import {
   Accessibility,
   AudioLines,
+  CheckCircle2,
   CircleAlert,
   FileDown,
   Heart,
@@ -10,6 +11,7 @@ import {
   Keyboard,
   LockKeyhole,
   MessageSquareText,
+  Info,
   Play,
   Power,
   RotateCcw,
@@ -18,7 +20,9 @@ import {
   Square,
   Star,
   Trash2,
+  TriangleAlert,
   Volume2,
+  X,
 } from "lucide-react";
 import { desktop } from "./lib/desktop";
 import {
@@ -36,6 +40,7 @@ import type {
   Settings,
   SettingsPatch,
   ShortcutError,
+  NoticeKind,
   VoiceCatalog,
 } from "./types";
 
@@ -70,6 +75,7 @@ const VOICE_INSTRUCTION_PRESETS = [
 type Tab = "general" | "voices" | "advanced";
 type CatalogScope = "recommended" | "favorites" | "all";
 type SaveState = "idle" | "saving" | "saved" | "failed";
+type UiFeedback = { kind: NoticeKind; message: string };
 
 function isCustomVoice(settings: Settings): boolean {
   return Boolean(settings.customSpeakerId?.trim());
@@ -82,10 +88,6 @@ function readableError(error: unknown): string {
     return String(error.message);
   }
   return "操作未完成，请检查设置后重试。";
-}
-
-function noticeClass(status: AppStatus): string {
-  return status.notice?.kind ?? "info";
 }
 
 export default function App() {
@@ -111,7 +113,8 @@ export default function App() {
   const [previewingSpeakerId, setPreviewingSpeakerId] = useState<string | null>(null);
   const [unavailableSpeakerIds, setUnavailableSpeakerIds] = useState<Set<string>>(() => new Set());
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<UiFeedback | null>(null);
+  const [dismissedNotice, setDismissedNotice] = useState<string | null>(null);
   const [diagnosticsPath, setDiagnosticsPath] = useState<string | null>(null);
 
   const saveTimer = useRef<number | undefined>(undefined);
@@ -121,6 +124,10 @@ export default function App() {
   const voiceViewport = useRef<HTMLDivElement>(null);
   const voiceOptionRefs = useRef(new Map<string, HTMLButtonElement>());
   const shortcutRecorder = useRef<HTMLButtonElement>(null);
+
+  function showFeedback(message: string, kind: NoticeKind = "info") {
+    setFeedback({ kind, message });
+  }
 
   const flushSettings = useCallback(async () => {
     saveTimer.current = undefined;
@@ -139,7 +146,7 @@ export default function App() {
       setSaveState("saved");
     } catch (error) {
       setSaveState("failed");
-      setFeedback(readableError(error));
+      showFeedback(readableError(error), "error");
       if (revision === settingsRevision.current) {
         void desktop
           .getSettings()
@@ -175,7 +182,7 @@ export default function App() {
         setCatalog(nextCatalog);
       })
       .catch((error: unknown) => {
-        if (active) setFeedback(readableError(error));
+        if (active) showFeedback(readableError(error), "error");
       });
 
     const unlisten = listen<AppStatus>("app-state", (event) => {
@@ -208,7 +215,7 @@ export default function App() {
     } finally {
       setRecordingShortcut(false);
       setShortcutDraft(null);
-      if (message) setFeedback(message);
+      if (message) showFeedback(message);
     }
   }, []);
 
@@ -240,7 +247,7 @@ export default function App() {
           setRecordingShortcut(false);
           setShortcutDraft(null);
           setSaveState("saved");
-          setFeedback("快捷键已更新，现在可以立即使用。");
+          showFeedback("快捷键已更新，现在可以立即使用。", "success");
         })
         .catch((error: ShortcutError | unknown) => {
           const message =
@@ -308,7 +315,7 @@ export default function App() {
     try {
       setStatus(await desktop.toggleReading());
     } catch (error) {
-      setFeedback(readableError(error));
+      showFeedback(readableError(error), "error");
     } finally {
       setToggleBusy(false);
     }
@@ -319,16 +326,16 @@ export default function App() {
       setStatus(await desktop.stopPlayback());
       setPreviewingSpeakerId(null);
     } catch (error) {
-      setFeedback(readableError(error));
+      showFeedback(readableError(error), "error");
     }
   }
 
   async function requestAccessibility() {
     try {
       await desktop.requestAccessibility();
-      setFeedback("已打开系统辅助功能设置；授权后回到这里点击“重新检查”。");
+      showFeedback("已打开系统辅助功能设置；授权后回到这里点击“重新检查”。");
     } catch (error) {
-      setFeedback(readableError(error));
+      showFeedback(readableError(error), "error");
     }
   }
 
@@ -336,15 +343,18 @@ export default function App() {
     try {
       const nextStatus = await desktop.getStatus();
       setStatus(nextStatus);
-      setFeedback(nextStatus.accessibilityTrusted ? "已检测到辅助功能授权。" : "仍未检测到辅助功能授权。");
+      showFeedback(
+        nextStatus.accessibilityTrusted ? "已检测到辅助功能授权。" : "仍未检测到辅助功能授权。",
+        nextStatus.accessibilityTrusted ? "success" : "warning",
+      );
     } catch (error) {
-      setFeedback(readableError(error));
+      showFeedback(readableError(error), "error");
     }
   }
 
   async function saveApiKey() {
     if (!apiKey.trim()) {
-      setFeedback("请输入 API Key 后再保存。");
+      showFeedback("请输入 API Key 后再保存。", "warning");
       return;
     }
     setKeyBusy(true);
@@ -353,9 +363,9 @@ export default function App() {
       await desktop.saveApiKey(apiKey);
       setApiKey("");
       setStatus(await desktop.getStatus());
-      setFeedback("API Key 已保存到系统钥匙串，不会在界面中回显。");
+      showFeedback("API Key 已保存到系统钥匙串，不会在界面中回显。", "success");
     } catch (error) {
-      setFeedback(readableError(error));
+      showFeedback(readableError(error), "error");
     } finally {
       setKeyBusy(false);
     }
@@ -366,9 +376,9 @@ export default function App() {
     try {
       await desktop.clearApiKey();
       setStatus(await desktop.getStatus());
-      setFeedback("API Key 已从系统钥匙串清除。");
+      showFeedback("API Key 已从系统钥匙串清除。", "success");
     } catch (error) {
-      setFeedback(readableError(error));
+      showFeedback(readableError(error), "error");
     }
   }
 
@@ -377,9 +387,9 @@ export default function App() {
     try {
       const path = await desktop.exportDiagnostics();
       setDiagnosticsPath(path);
-      setFeedback("诊断文件已导出，其中不包含 API Key 或选中文字。");
+      showFeedback("诊断文件已导出，其中不包含 API Key 或选中文字。", "success");
     } catch (error) {
-      setFeedback(readableError(error));
+      showFeedback(readableError(error), "error");
     }
   }
 
@@ -401,7 +411,7 @@ export default function App() {
       await desktop.previewVoice(speakerId);
     } catch (error) {
       setUnavailableSpeakerIds((current) => new Set(current).add(speakerId));
-      setFeedback(readableError(error));
+      showFeedback(readableError(error), "error");
     } finally {
       setPreviewingSpeakerId((current) => (current === speakerId ? null : current));
     }
@@ -439,7 +449,7 @@ export default function App() {
       settingsRevision.current += 1;
       setSettings(saved);
       setSaveState("saved");
-      setFeedback("已恢复默认快捷键。");
+      showFeedback("已恢复默认快捷键。", "success");
     } catch (error) {
       setShortcutError(readableError(error));
     }
@@ -471,7 +481,29 @@ export default function App() {
         : saveState === "failed"
           ? "保存失败"
           : "本机自动保存";
-  const statusMessage = feedback ?? status.notice?.message;
+  const noticeSignature = status.notice
+    ? `${status.notice.kind}:${status.notice.code ?? ""}:${status.notice.message}`
+    : null;
+  const backendNotice = noticeSignature !== dismissedNotice ? status.notice : null;
+  const visibleNotice = feedback ?? backendNotice;
+
+  useEffect(() => {
+    setDismissedNotice(null);
+  }, [noticeSignature]);
+
+  useEffect(() => {
+    if (!visibleNotice || visibleNotice.kind === "warning" || visibleNotice.kind === "error") return;
+    const timer = window.setTimeout(() => {
+      if (feedback) setFeedback(null);
+      else if (noticeSignature) setDismissedNotice(noticeSignature);
+    }, 4200);
+    return () => window.clearTimeout(timer);
+  }, [feedback, noticeSignature, visibleNotice]);
+
+  function dismissVisibleNotice() {
+    if (feedback) setFeedback(null);
+    else if (noticeSignature) setDismissedNotice(noticeSignature);
+  }
 
   return (
     <main className="app-shell">
@@ -854,19 +886,36 @@ export default function App() {
           )}
         </div>
 
-        {statusMessage && (
-          <p className={`feedback ${feedback ? "error" : noticeClass(status)}`} role="status">
-            {statusMessage}
-          </p>
-        )}
-
-        <footer>
-          <span>鼠标选中 2–5000 个字后自动朗读</span>
-          <span>关闭窗口后仍在托盘运行</span>
+        <footer className={`status-bar ${visibleNotice?.kind ?? "idle"}`}>
+          {visibleNotice ? (
+            <div
+              className="status-message"
+              role={visibleNotice.kind === "error" ? "alert" : "status"}
+              aria-live={visibleNotice.kind === "error" ? "assertive" : "polite"}
+            >
+              <StatusIcon kind={visibleNotice.kind} />
+              <span title={visibleNotice.message}>{visibleNotice.message}</span>
+              <button type="button" onClick={dismissVisibleNotice} aria-label="关闭提示" title="关闭提示">
+                <X size={13} aria-hidden="true" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <span>鼠标选中 2–5000 个字后自动朗读</span>
+              <span>关闭窗口后仍在托盘运行</span>
+            </>
+          )}
         </footer>
       </section>
     </main>
   );
+}
+
+function StatusIcon({ kind }: { kind: NoticeKind }) {
+  if (kind === "success") return <CheckCircle2 size={13} aria-hidden="true" />;
+  if (kind === "warning") return <TriangleAlert size={13} aria-hidden="true" />;
+  if (kind === "error") return <CircleAlert size={13} aria-hidden="true" />;
+  return <Info size={13} aria-hidden="true" />;
 }
 
 function TabButton({

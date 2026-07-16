@@ -1064,38 +1064,80 @@ h1 {
   white-space: nowrap;
 }
 
-.feedback {
+.status-bar {
   flex: 0 0 auto;
-  margin: 0 21px 9px;
-  padding: 7px 9px;
-  border-left: 3px solid #5b8468;
-  color: #486151;
-  background: rgba(218, 231, 215, 0.54);
-  font-size: 0.7rem;
-  line-height: 1.42;
-}
-
-.feedback.warning {
-  border-left-color: #ba7629;
-  color: #84531d;
-  background: rgba(250, 229, 192, 0.47);
-}
-
-.feedback.error {
-  border-left-color: #b14b3b;
-  color: #8d3b2f;
-  background: rgba(248, 220, 211, 0.48);
-}
-
-footer {
-  flex: 0 0 auto;
+  min-height: 35px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 21px 10px;
+  padding: 7px 21px 8px;
   border-top: 1px solid #ded4c4;
   color: #8a8a7e;
+  background: rgba(249, 245, 235, 0.72);
   font-size: 0.62rem;
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+
+.status-bar.success {
+  border-top-color: #b9cdbd;
+  color: #41644e;
+  background: rgba(222, 234, 219, 0.78);
+}
+
+.status-bar.warning {
+  border-top-color: #dfc28f;
+  color: #83531f;
+  background: rgba(248, 232, 201, 0.82);
+}
+
+.status-bar.error {
+  border-top-color: #dfafa5;
+  color: #8c3d31;
+  background: rgba(246, 224, 217, 0.86);
+}
+
+.status-bar.info {
+  border-top-color: #bfd0c3;
+  color: #486151;
+  background: rgba(224, 234, 221, 0.78);
+}
+
+.status-message {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-message > svg {
+  flex: 0 0 auto;
+}
+
+.status-message > span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-message button {
+  width: 22px;
+  height: 20px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: currentColor;
+  background: transparent;
+}
+
+.status-message button:hover {
+  background: rgba(38, 52, 45, 0.09);
 }
 
 @keyframes soft-pulse {
@@ -1112,8 +1154,7 @@ footer {
   .voice-strip,
   .tabs { padding-right: 14px; padding-left: 14px; }
   .tab-panel { padding: 13px 14px; }
-  .feedback { margin-right: 14px; margin-left: 14px; }
-  footer { padding-right: 14px; padding-left: 14px; }
+  .status-bar { padding-right: 14px; padding-left: 14px; }
   .mode-switch { min-width: 174px; }
   .voice-filters { flex-wrap: wrap; }
   .search-field { min-width: 100%; }
