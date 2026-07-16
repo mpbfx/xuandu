@@ -792,6 +792,132 @@ h1 {
   margin-top: 11px;
 }
 
+.voice-instruction {
+  flex: 0 0 auto;
+  margin-top: 10px;
+  border: 1px solid #d7cbb9;
+  border-radius: 6px;
+  background: rgba(255, 253, 247, 0.62);
+}
+
+.voice-instruction summary {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 7px 10px;
+  color: #385143;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 800;
+  list-style-position: inside;
+}
+
+.voice-instruction summary::marker {
+  color: #a9672c;
+}
+
+.voice-instruction summary small {
+  overflow: hidden;
+  color: #85877d;
+  font-size: 0.63rem;
+  font-weight: 500;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voice-instruction-body {
+  display: grid;
+  gap: 8px;
+  padding: 0 10px 10px;
+  border-top: 1px solid #e3d9c9;
+}
+
+.instruction-warning {
+  margin: 8px 0 0;
+  color: #945928;
+  font-size: 0.65rem;
+  line-height: 1.45;
+}
+
+.instruction-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.instruction-warning + .instruction-presets {
+  margin-top: 0;
+}
+
+.instruction-presets button {
+  border: 1px solid #d4c6b0;
+  border-radius: 999px;
+  padding: 4px 7px;
+  color: #636c64;
+  background: rgba(255, 255, 255, 0.64);
+  font-size: 0.61rem;
+  font-weight: 700;
+}
+
+.instruction-presets button:hover:not(:disabled),
+.instruction-presets button.active {
+  border-color: #a86a31;
+  color: #7f461b;
+  background: #f7e7cf;
+}
+
+.instruction-field {
+  position: relative;
+  display: block;
+}
+
+.instruction-field textarea {
+  width: 100%;
+  min-height: 52px;
+  resize: vertical;
+  padding: 8px 48px 8px 9px;
+  border: 1px solid #d2c5b0;
+  border-radius: 5px;
+  outline: 0;
+  color: #344238;
+  background: rgba(255, 255, 255, 0.76);
+  font: 0.68rem/1.45 "Avenir Next", "PingFang SC", sans-serif;
+}
+
+.instruction-field textarea:focus {
+  border-color: #a6692e;
+  box-shadow: 0 0 0 3px rgba(166, 105, 46, 0.13);
+}
+
+.instruction-field textarea:disabled {
+  color: #8b8d85;
+  background: rgba(235, 231, 220, 0.66);
+}
+
+.instruction-field > span:last-child {
+  position: absolute;
+  right: 8px;
+  bottom: 7px;
+  color: #929389;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.56rem;
+}
+
+.instruction-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.instruction-actions .secondary-button {
+  padding: 5px 8px;
+  font-size: 0.63rem;
+}
+
 .range-control {
   flex: 1;
   min-width: 0;

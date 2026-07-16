@@ -607,12 +607,15 @@ impl AppState {
         self.clear_notice();
 
         let settings = self.settings();
+        let voice_instruction =
+            supported_voice_instruction(&speaker, settings.voice_instruction.clone());
         let options = TtsOptions {
             api_key,
             resource_id,
             speaker,
             speech_rate: settings.speech_rate,
             loudness_rate: settings.loudness_rate,
+            voice_instruction,
             sample_rate: playback.sample_rate(),
         };
         let result = self.tts.synthesize_into(text, &options, &playback).await;
@@ -688,6 +691,13 @@ fn parse_shortcut(value: &str) -> Result<Shortcut, String> {
     value
         .parse()
         .map_err(|_| "快捷键格式无效，例如 Command+Option+R 或 Ctrl+Alt+R。".to_owned())
+}
+
+fn supported_voice_instruction(speaker: &str, instruction: Option<String>) -> Option<String> {
+    find_voice(speaker)
+        .is_some()
+        .then_some(instruction)
+        .flatten()
 }
 
 fn validate_shortcut_value(value: &str) -> Result<ShortcutValidation, ShortcutError> {
@@ -782,7 +792,11 @@ fn is_reserved_shortcut(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{validate_shortcut_value, Duration, Instant, LastSelection, DUPLICATE_WINDOW};
+    use super::{
+        supported_voice_instruction, validate_shortcut_value, Duration, Instant, LastSelection,
+        DUPLICATE_WINDOW,
+    };
+    use crate::voice_catalog::DEFAULT_SPEAKER;
 
     #[test]
     fn duplicate_window_is_short_lived() {
@@ -819,5 +833,15 @@ mod tests {
             validate_shortcut_value("Command+Space").unwrap_err().code,
             "reserved_combination"
         );
+    }
+
+    #[test]
+    fn voice_instruction_is_only_sent_for_bundled_seed_tts_two_voices() {
+        let instruction = Some("请用温柔的语气说话。".to_owned());
+        assert_eq!(
+            supported_voice_instruction(DEFAULT_SPEAKER, instruction.clone()),
+            instruction
+        );
+        assert!(supported_voice_instruction("custom-speaker", instruction).is_none());
     }
 }

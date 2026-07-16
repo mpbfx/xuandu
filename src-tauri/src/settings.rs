@@ -16,6 +16,8 @@ pub struct AppSettings {
     pub custom_speaker_id: Option<String>,
     pub speech_rate: i32,
     pub loudness_rate: i32,
+    #[serde(default)]
+    pub voice_instruction: Option<String>,
     pub shortcut: String,
     #[serde(default)]
     pub favorite_speaker_ids: Vec<String>,
@@ -30,6 +32,7 @@ impl Default for AppSettings {
             custom_speaker_id: None,
             speech_rate: 0,
             loudness_rate: 0,
+            voice_instruction: None,
             shortcut: default_shortcut().to_owned(),
             favorite_speaker_ids: Vec::new(),
             launch_at_login: false,
@@ -44,6 +47,7 @@ pub struct SettingsPatch {
     pub custom_speaker_id: Option<String>,
     pub speech_rate: Option<i32>,
     pub loudness_rate: Option<i32>,
+    pub voice_instruction: Option<String>,
     pub shortcut: Option<String>,
     pub favorite_speaker_ids: Option<Vec<String>>,
     pub launch_at_login: Option<bool>,
@@ -64,6 +68,9 @@ impl AppSettings {
         }
         if let Some(loudness_rate) = patch.loudness_rate {
             next.loudness_rate = loudness_rate;
+        }
+        if let Some(voice_instruction) = patch.voice_instruction {
+            next.voice_instruction = normalize_optional_text(&voice_instruction);
         }
         if let Some(shortcut) = patch.shortcut {
             next.shortcut = shortcut.trim().to_owned();
@@ -95,6 +102,13 @@ impl AppSettings {
         }
         if !(-50..=100).contains(&self.loudness_rate) {
             return Err("音量必须在 0.5× 到 2.0× 之间。".to_owned());
+        }
+        if self
+            .voice_instruction
+            .as_ref()
+            .is_some_and(|instruction| instruction.chars().count() > 300)
+        {
+            return Err("语音指令不能超过 300 个字。".to_owned());
         }
         if self.shortcut.is_empty() {
             return Err("请设置一个模式切换快捷键。".to_owned());
@@ -276,6 +290,37 @@ mod tests {
             ..Default::default()
         });
 
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn voice_instruction_is_trimmed_and_can_be_cleared() {
+        let settings = AppSettings::default()
+            .apply_patch(SettingsPatch {
+                voice_instruction: Some("  请用温柔的语气说话。  ".to_owned()),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(
+            settings.voice_instruction.as_deref(),
+            Some("请用温柔的语气说话。")
+        );
+
+        let cleared = settings
+            .apply_patch(SettingsPatch {
+                voice_instruction: Some(String::new()),
+                ..Default::default()
+            })
+            .unwrap();
+        assert!(cleared.voice_instruction.is_none());
+    }
+
+    #[test]
+    fn overlong_voice_instruction_is_rejected() {
+        let result = AppSettings::default().apply_patch(SettingsPatch {
+            voice_instruction: Some("语".repeat(301)),
+            ..Default::default()
+        });
         assert!(result.is_err());
     }
 

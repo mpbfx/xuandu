@@ -19,6 +19,7 @@ export interface Settings {
   customSpeakerId?: string | null;
   speechRate: number;
   loudnessRate: number;
+  voiceInstruction?: string | null;
   shortcut: string;
   favoriteSpeakerIds: string[];
   launchAtLogin: boolean;
@@ -29,6 +30,7 @@ export interface SettingsPatch {
   customSpeakerId?: string;
   speechRate?: number;
   loudnessRate?: number;
+  voiceInstruction?: string;
   shortcut?: string;
   favoriteSpeakerIds?: string[];
   launchAtLogin?: boolean;

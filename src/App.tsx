@@ -9,6 +9,7 @@ import {
   KeyRound,
   Keyboard,
   LockKeyhole,
+  MessageSquareText,
   Play,
   Power,
   RotateCcw,
@@ -45,6 +46,7 @@ const DEFAULT_SETTINGS: Settings = {
   customSpeakerId: null,
   speechRate: 0,
   loudnessRate: 0,
+  voiceInstruction: null,
   shortcut: "Command+Option+R",
   favoriteSpeakerIds: [],
   launchAtLogin: false,
@@ -56,6 +58,14 @@ const EMPTY_CATALOG: VoiceCatalog = {
   language: "zh-CN",
   voices: [],
 };
+
+const VOICE_INSTRUCTION_PRESETS = [
+  { label: "温柔自然", value: "请用温柔、自然、放松的语气说话。" },
+  { label: "新闻播报", value: "请用清晰、沉稳、专业的新闻播报语气说话。" },
+  { label: "充满活力", value: "请用充满活力、明快且有感染力的语气说话。" },
+  { label: "低沉严肃", value: "请用低沉、严肃、克制的语气说话。" },
+  { label: "悲伤痛心", value: "请用悲伤、痛心但保持清晰的语气说话。" },
+] as const;
 
 type Tab = "general" | "voices" | "advanced";
 type CatalogScope = "recommended" | "favorites" | "all";
@@ -140,7 +150,7 @@ export default function App() {
       }
     } finally {
       requestInFlight.current = false;
-      if (Object.keys(pendingPatch.current).length > 0) void flushSettings();
+      if (Object.keys(pendingPatch.current).length > 0) await flushSettings();
     }
   }, []);
 
@@ -270,6 +280,8 @@ export default function App() {
   const currentSpeakerId = activeSpeaker(settings);
   const usingCustomVoice = isCustomVoice(settings);
   const currentVoiceName = usingCustomVoice ? "自定义音色" : selectedVoice?.name ?? "未选择";
+  const voiceInstruction = settings.voiceInstruction?.trim() ?? "";
+  const instructionSummary = voiceInstruction || "未设置，使用音色默认表达";
 
   const filteredVoices = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -393,6 +405,15 @@ export default function App() {
     } finally {
       setPreviewingSpeakerId((current) => (current === speakerId ? null : current));
     }
+  }
+
+  async function previewCurrentVoice() {
+    if (saveTimer.current !== undefined) {
+      window.clearTimeout(saveTimer.current);
+      saveTimer.current = undefined;
+    }
+    await flushSettings();
+    await previewVoice(settings.speakerId);
   }
 
   async function beginShortcutRecording() {
@@ -716,6 +737,63 @@ export default function App() {
                   onChange={(loudnessRate) => queueSettings({ loudnessRate })}
                 />
               </div>
+
+              <details className="voice-instruction">
+                <summary>
+                  <span className="button-with-icon"><MessageSquareText size={14} aria-hidden="true" />语音指令</span>
+                  <small title={instructionSummary}>{instructionSummary}</small>
+                </summary>
+                <div className="voice-instruction-body">
+                  {usingCustomVoice && (
+                    <p className="instruction-warning" role="note">
+                      豆包当前仅对官方 Seed TTS 2.0 音色支持语音指令；自定义 Speaker ID 不会发送该字段。
+                    </p>
+                  )}
+                  <div className="instruction-presets" aria-label="常用语音指令">
+                    {VOICE_INSTRUCTION_PRESETS.map((preset) => (
+                      <button
+                        className={voiceInstruction === preset.value ? "active" : ""}
+                        type="button"
+                        key={preset.label}
+                        onClick={() => queueSettings({ voiceInstruction: preset.value })}
+                        disabled={usingCustomVoice}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="instruction-field">
+                    <span className="sr-only">自定义语音指令</span>
+                    <textarea
+                      value={settings.voiceInstruction ?? ""}
+                      onChange={(event) => queueSettings({ voiceInstruction: event.target.value })}
+                      placeholder="例如：请用温柔、放松的语气说话。"
+                      maxLength={300}
+                      disabled={usingCustomVoice}
+                      rows={2}
+                    />
+                    <span>{voiceInstruction.length}/300</span>
+                  </label>
+                  <div className="instruction-actions">
+                    <button
+                      className="secondary-button button-with-icon"
+                      type="button"
+                      onClick={() => queueSettings({ voiceInstruction: "" }, 0)}
+                      disabled={!voiceInstruction}
+                    >
+                      清除指令
+                    </button>
+                    <button
+                      className="secondary-button button-with-icon"
+                      type="button"
+                      onClick={() => void previewCurrentVoice()}
+                      disabled={usingCustomVoice || previewingSpeakerId !== null}
+                    >
+                      <Play size={12} aria-hidden="true" />试听当前效果
+                    </button>
+                  </div>
+                </div>
+              </details>
             </section>
           )}
 

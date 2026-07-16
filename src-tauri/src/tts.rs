@@ -23,6 +23,7 @@ pub struct TtsOptions {
     pub speaker: String,
     pub speech_rate: i32,
     pub loudness_rate: i32,
+    pub voice_instruction: Option<String>,
     pub sample_rate: u32,
 }
 
@@ -179,6 +180,10 @@ fn request_body<'a>(text: &'a str, options: &'a TtsOptions) -> TtsRequest<'a> {
                 speech_rate: options.speech_rate,
                 loudness_rate: options.loudness_rate,
             },
+            context_texts: options
+                .voice_instruction
+                .as_ref()
+                .map(|instruction| vec![instruction.clone()]),
             additions: r#"{"explicit_language":"zh-cn","disable_markdown_filter":true,"disable_emoji_filter":true}"#.to_owned(),
         },
     }
@@ -200,6 +205,8 @@ struct RequestParams<'a> {
     text: &'a str,
     speaker: &'a str,
     audio_params: AudioParams,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    context_texts: Option<Vec<String>>,
     additions: String,
 }
 
@@ -345,18 +352,38 @@ mod tests {
             speaker: "speaker-id".to_owned(),
             speech_rate: 0,
             loudness_rate: 0,
+            voice_instruction: Some("请用温柔、自然的语气说话。".to_owned()),
             sample_rate: 48_000,
         };
         let body = serde_json::to_value(request_body("你好", &options)).unwrap();
 
         assert_eq!(body["user"]["uid"], "xuandu-desktop");
         assert_eq!(body["req_params"]["audio_params"]["format"], "pcm");
+        assert_eq!(
+            body["req_params"]["context_texts"][0],
+            "请用温柔、自然的语气说话。"
+        );
         assert!(body["audio_params"].is_null());
         assert!(body["req_params"]["additions"]
             .as_str()
             .unwrap()
             .contains("explicit_language"));
         assert!(!body.to_string().contains("secret-key"));
+    }
+
+    #[test]
+    fn request_omits_voice_instruction_when_not_configured() {
+        let options = TtsOptions {
+            api_key: "secret-key".to_owned(),
+            resource_id: "seed-tts-2.0".to_owned(),
+            speaker: "speaker-id".to_owned(),
+            speech_rate: 0,
+            loudness_rate: 0,
+            voice_instruction: None,
+            sample_rate: 48_000,
+        };
+        let body = serde_json::to_value(request_body("你好", &options)).unwrap();
+        assert!(body["req_params"].get("context_texts").is_none());
     }
 
     #[test]
