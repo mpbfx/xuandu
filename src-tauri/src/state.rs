@@ -118,13 +118,19 @@ impl AppState {
         let store = SettingsStore::new(&app)?;
         let settings = store.load();
         let diagnostics = DiagnosticStore::new(&app)?;
+        let secrets = SecretStore;
+        let initial_mode = if secrets.get()?.is_some() {
+            ReadingMode::Armed
+        } else {
+            ReadingMode::Off
+        };
         diagnostics.record("lifecycle", Some("startup"), "application started");
         Ok(Self {
             app,
             store,
-            secrets: SecretStore,
+            secrets,
             settings: Mutex::new(settings),
-            mode: Mutex::new(ReadingMode::Off),
+            mode: Mutex::new(initial_mode),
             notice: Mutex::new(None),
             status_hook: Mutex::new(None),
             audio: PlaybackController::default(),
@@ -310,6 +316,7 @@ impl AppState {
 
     pub fn save_api_key(&self, api_key: &str) -> Result<(), String> {
         self.secrets.set(api_key)?;
+        *self.mode.lock() = ReadingMode::Armed;
         self.diagnostics.record(
             "credentials",
             Some("saved"),
