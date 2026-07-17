@@ -1,14 +1,15 @@
 use windows::{
-    core::Interface,
     Win32::{
+        Foundation::POINT,
         System::Com::{
             CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
         },
         UI::{
             Accessibility::{
-                CUIAutomation, IUIAutomation, IUIAutomationTextPattern, UIA_TextPatternId,
+                CUIAutomation, IUIAutomation, IUIAutomationElement, IUIAutomationTextPattern,
+                UIA_TextPatternId,
             },
-            WindowsAndMessaging::GetForegroundWindow,
+            WindowsAndMessaging::{GetCursorPos, GetForegroundWindow},
         },
     },
 };
@@ -17,17 +18,47 @@ pub fn start_mouse_release_listener(callback: impl Fn() + Send + 'static) -> Res
     std::thread::Builder::new()
         .name("xuandu-mouse-listener".to_owned())
         .spawn(move || {
+            let mut cursor = (0.0_f64, 0.0_f64);
+            let mut press_origin = None;
+            let mut dragged = false;
+            let mut last_click: Option<(std::time::Instant, f64, f64)> = None;
             let _ = rdev::listen(move |event| {
-                if matches!(
-                    event.event_type,
-                    rdev::EventType::ButtonRelease(rdev::Button::Left)
-                ) {
-                    callback();
+                match event.event_type {
+                    rdev::EventType::MouseMove { x, y } => {
+                        cursor = (x, y);
+                        if let Some((start_x, start_y)) = press_origin {
+                            let dx: f64 = x - start_x;
+                            let dy: f64 = y - start_y;
+                            if dx * dx + dy * dy >= 16.0_f64 {
+                                dragged = true;
+                            }
+                        }
+                    }
+                    rdev::EventType::ButtonPress(rdev::Button::Left) => {
+                        press_origin = Some(cursor);
+                        dragged = false;
+                    }
+                    rdev::EventType::ButtonRelease(rdev::Button::Left) => {
+                        let now = std::time::Instant::now();
+                        let double_click = last_click.is_some_and(|(at, x, y)| {
+                            let dx = cursor.0 - x;
+                            let dy = cursor.1 - y;
+                            now.duration_since(at) <= std::time::Duration::from_millis(500)
+                                && dx * dx + dy * dy <= 25.0
+                        });
+                        if dragged || double_click {
+                            callback();
+                        }
+                        last_click = Some((now, cursor.0, cursor.1));
+                        press_origin = None;
+                        dragged = false;
+                    }
+                    _ => {}
                 }
             });
         })
         .map(|_| ())
-        .map_err(|error| format!("无法创建鼠标监听线程：{error}"))
+        .map_err(|error| format!("创建鼠标监听线程失败：{error}"))
 }
 
 pub fn is_accessibility_trusted() -> bool {
@@ -40,36 +71,67 @@ pub fn request_accessibility() -> Result<(), String> {
 
 pub fn selected_text() -> Result<Option<String>, String> {
     unsafe {
-        // UI Automation can be initialized repeatedly on the input listener thread.
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
         let hwnd = GetForegroundWindow();
-        if hwnd.0 == 0 {
+        if hwnd.0.is_null() {
             return Ok(None);
         }
 
         let automation: IUIAutomation =
             CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER)
-                .map_err(|error| format!("无法初始化 Windows UI Automation：{error}"))?;
-        let element = automation
-            .ElementFromHandle(hwnd)
-            .map_err(|_| "前台窗口未提供可访问文本。".to_owned())?;
-        let pattern: IUIAutomationTextPattern = element
-            .GetCurrentPatternAs(UIA_TextPatternId)
-            .map_err(|_| "当前控件未提供选区。".to_owned())?;
-        let ranges = pattern
-            .GetSelection()
-            .map_err(|_| "当前控件未提供选区。".to_owned())?;
+                .map_err(|error| format!("初始化 Windows UI Automation 失败：{error}"))?;
 
-        if ranges.Length().unwrap_or(0) == 0 {
-            return Ok(None);
+        // Browser and editor top-level windows rarely expose TextPattern directly.
+        // Check the focused control and pointer target, then walk up their UIA parents.
+        if let Ok(element) = automation.GetFocusedElement() {
+            if let Some(text) = selected_text_from_element(&automation, element) {
+                return Ok(Some(text));
+            }
         }
-        let range = ranges
-            .GetElement(0)
-            .map_err(|_| "无法读取当前选区。".to_owned())?;
-        let value = range
-            .GetText(-1)
-            .map_err(|_| "无法读取当前选区。".to_owned())?;
 
-        Ok((!value.is_empty()).then_some(value.to_string()))
+        let mut point = POINT::default();
+        if GetCursorPos(&mut point).is_ok() {
+            if let Ok(element) = automation.ElementFromPoint(point) {
+                if let Some(text) = selected_text_from_element(&automation, element) {
+                    return Ok(Some(text));
+                }
+            }
+        }
+
+        if let Ok(element) = automation.ElementFromHandle(hwnd) {
+            if let Some(text) = selected_text_from_element(&automation, element) {
+                return Ok(Some(text));
+            }
+        }
+
+        Ok(None)
     }
+}
+
+unsafe fn selected_text_from_element(
+    automation: &IUIAutomation,
+    mut element: IUIAutomationElement,
+) -> Option<String> {
+    let walker = automation.ControlViewWalker().ok()?;
+    for _ in 0..12 {
+        if let Ok(pattern) =
+            element.GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId)
+        {
+            if let Ok(ranges) = pattern.GetSelection() {
+                let length = ranges.Length().unwrap_or(0);
+                for index in 0..length {
+                    if let Ok(range) = ranges.GetElement(index) {
+                        if let Ok(value) = range.GetText(-1) {
+                            let text = value.to_string();
+                            if !text.trim().is_empty() {
+                                return Some(text);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        element = walker.GetParentElement(&element).ok()?;
+    }
+    None
 }
